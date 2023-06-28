@@ -2,6 +2,8 @@ import telebot
 import json
 import threading
 import time
+import asyncio
+import concurrent.futures
 
 token = "6095790820:AAFTgH9GYnOoUogisKj2d81xCi5o9xI2US4"
 bot = telebot.TeleBot(token)
@@ -11,8 +13,19 @@ message1 = "How should I use this bot?"
 user_id1 = 103452
 
 
-def start_message(message, user_id):
-    bot.send_message(group_id, message + "\n #" + str(user_id))
+async def handle_connection(reader, writer):
+    while True:
+        try:
+            data = yield asyncio.wait_for(reader.readline(), timeout=10.0)
+            start_message(data)
+            break
+        except concurrent.futures.TimeoutError:
+            break
+    writer.close()
+
+
+def start_message(message):
+    bot.send_message(group_id, message)
 
 
 def delete_messages_from_group(message):
@@ -32,5 +45,14 @@ def handle_message_from_group(message):
                 delete_messages_from_group(message)
 
 
-start_message(message1, user_id1)
+loop = asyncio.get_event_loop()
+server_gen = asyncio.start_server(handle_connection, port=2007)
+server = loop.run_until_complete(server_gen)
+try:
+    loop.run_forever()
+except KeyboardInterrupt:
+    pass
+finally:
+    server.close()
+    loop.stop()
 bot.polling()
