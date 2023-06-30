@@ -36,6 +36,7 @@ def delete_messages_from_group(message):
 
 @bot.message_handler(content_types=["text"])
 def handle_message_from_group(message):
+    global answer_1
     if message.chat.id == group_id:
         if message.reply_to_message:
             if message.text == "!get":
@@ -43,8 +44,26 @@ def handle_message_from_group(message):
                 bot.send_message(message.from_user.id, replied_message)
                 bot.send_message(message.from_user.id, "You successfully catch this question to work")
                 delete_messages_from_group(message)
+    else:
+        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+        button_1 = telebot.types.KeyboardButton("Yes")
+        button_2 = telebot.types.KeyboardButton("No")
+        markup.add(button_1, button_2)
+        # bot.send_message(message.chat.id, text="Is it all answer? (Yes or No)".format(message.from_user),
+        #                  reply_markup=markup)
+
+        if message.text != "Yes":  # пока ответ не весь, добавляет в ответ и снова спрашивает
+            if message.text != "No":
+                answer_more = message.text
+                answer_1 = answer_1 + " " + answer_more
+                bot.send_message(message.chat.id, text="Is it all answer? (Yes or No)".format(message.from_user),
+                                 reply_markup=markup)
+
+                bot.send_message(message.from_user.id, answer_1)  # отправляет ответ юзеру
 
 
+answer_1 = ""
+start_message(message1)
 loop = asyncio.get_event_loop()
 server_gen = asyncio.start_server(handle_connection, port=2007)
 server = loop.run_until_complete(server_gen)
