@@ -6,9 +6,36 @@ from firebase_admin import db
 import requests
 import json
 
-def send_question_to_server(user_id, question):
+from fastapi import FastAPI
+from pydantic import BaseModel
+from typing import Optional
+from fastapi import HTTPException
+
+app = FastAPI()
+
+class Question(BaseModel):
+    user_id: str
+    question: str
+
+class Answer(BaseModel):
+    user_id: str
+    answer: str
+
+@app.post("/send_answer")
+async def send_answer(answer: Answer):
+    return {"status": "answer received"}
+
+
+def send_question_to_bot(user_id, question):
     url = 'http://localhost:2007'
     data = {'user_id': user_id, 'question': question}
+    headers = {'Content-type': 'application/json'}
+    response = requests.post(url, data=json.dumps(data), headers=headers)
+    return response
+
+def send_answer_to_server(user_id, answer):
+    url = 'http://localhost:8000/send_answer'
+    data = {'user_id': user_id, 'answer': answer}
     headers = {'Content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(data), headers=headers)
     return response
@@ -39,15 +66,16 @@ ref = db.reference('/')
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-while True:
-    user_id = input("Введите ID пользователя: ")
-    user_question = input("Введите вопрос: ")
+@app.post("/receive_question")
+async def receive_question(question: Question):
+    user_id = question.user_id
+    user_question = question.question
 
     all_questions_data = ref.get()
 
     if all_questions_data is not None:
         all_questions = [item['A question'] for sublist in all_questions_data.values() for item in sublist.values()]
-        all_answers = [item['An answer'] for sublist in all_questions_data.values() for item in sublist.values()]
+        all_answers = [item.get('An answer', '') for sublist in all_questions_data.values() for item in sublist.values()]
         user_question_embedding = model.encode(user_question, convert_to_tensor=True)
         all_questions_embeddings = model.encode(all_questions, convert_to_tensor=True)
 
@@ -58,23 +86,21 @@ while True:
 
         for score, idx in zip(top_results[0], top_results[1]):
             if score.item() > 0.7:  # Если косинусное сходство больше 0.7
-                print(f'Ваш вопрос очень похож на: "{all_questions[idx]}"')
+                #print(f'Ваш вопрос очень похож на: "{all_questions[idx]}"')
                 volunteer_answer = all_answers[idx]
+                send_answer_to_server(user_id, volunteer_answer)
                 match_found = True
                 break
 
         if not match_found:
-            send_question_to_server(user_id, user_question)
+            send_question_to_bot(user_id, user_question)
+            ref.child(user_id).push({
+                'A question': user_question
+            })
     else:
         volunteer_answer = input("Введите ответ на вопрос: ")
-
-    # Запись вопроса и ответа в базу данных
-    if volunteer_answer != None:
         ref.child(user_id).push({
             'A question': user_question,
             'An answer': volunteer_answer
         })
-    else:
-        ref.child(user_id).push({
-            'A question': user_question,
-        })
+    return {"status": "question received"}
