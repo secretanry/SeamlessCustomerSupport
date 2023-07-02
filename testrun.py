@@ -1,5 +1,3 @@
-from sentence_transformers import SentenceTransformer, util
-import torch
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
@@ -9,7 +7,6 @@ import json
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Optional
-from fastapi import HTTPException
 
 app = FastAPI()
 
@@ -41,7 +38,6 @@ def send_answer_to_server(user_id, answer):
     return response
 
 # path to your json file
-#cred = credentials.Certificate('/Users/aleksejkurejkin/PycharmProjects/FirebaseSCS/seamless-customer-support-firebase-adminsdk-j8s4r-0faab57fee.json')
 cred = credentials.Certificate({
 "type": "service_account",
   "project_id": "seamless-customer-support",
@@ -64,46 +60,14 @@ firebase_admin.initialize_app(cred, {
 
 ref = db.reference('/')
 
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
 @app.post("/receive_question")
 async def receive_question(question: Question):
     user_id = question.user_id
     user_question = question.question
 
-    all_questions_data = ref.get()
+    send_question_to_bot(user_id, user_question)
 
-    if all_questions_data is not None:
-        all_questions = [item['A question'] for sublist in all_questions_data.values() for item in sublist.values()]
-        all_answers = [item.get('An answer', '') for sublist in all_questions_data.values() for item in sublist.values()]
-        user_question_embedding = model.encode(user_question, convert_to_tensor=True)
-        all_questions_embeddings = model.encode(all_questions, convert_to_tensor=True)
-
-        cos_scores = util.pytorch_cos_sim(user_question_embedding, all_questions_embeddings)[0]
-        top_results = torch.topk(cos_scores, k=1)
-
-        match_found = False
-
-        for score, idx in zip(top_results[0], top_results[1]):
-            if score.item() > 0.7:  # Если косинусное сходство больше 0.7
-                #print(f'Ваш вопрос очень похож на: "{all_questions[idx]}"')
-                volunteer_answer = all_answers[idx]
-                send_answer_to_server(user_id, volunteer_answer)
-                ref.child(user_id).push({
-                    'A question': user_question,
-                    'An answer': volunteer_answer
-                })
-                match_found = True
-                break
-
-        if not match_found:
-            send_question_to_bot(user_id, user_question)
-            ref.child(user_id).push({
-                'A question': user_question
-            })
-    else:
-        send_question_to_bot(user_id, user_question)
-        ref.child(user_id).push({
-            'A question': user_question
-        })
+    ref.child(user_id).push({
+        'A question': user_question
+    })
     return {"status": "question received"}
