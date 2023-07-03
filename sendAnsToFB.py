@@ -1,48 +1,7 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
-import requests
-import json
 
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
-
-app = FastAPI()
-
-class Question(BaseModel):
-    user_id: str
-    question: str
-
-class Answer(BaseModel):
-    user_id: str
-    answer: str
-
-@app.post("/send_answer")
-async def send_answer(answer: Answer):
-    return {"status": "answer received", "volunteer_answer": answer.answer}
-
-@app.post("/send_question_bot")
-async def send_question_bot(question: Question):
-    response = send_question_to_bot(question.user_id, question.question)
-    return {"status": "question sent", "bot_response": response.text}
-
-
-def send_question_to_bot(user_id, question):
-    url = 'http://localhost:8000/receive_question_bot'
-    data = {'user_id': user_id, 'question': question}
-    headers = {'Content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(data), headers=headers)
-    return response
-
-def send_answer_to_server(user_id, answer):
-    url = 'http://localhost:8000/send_answer'
-    data = {'user_id': user_id, 'answer': answer}
-    headers = {'Content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(data), headers=headers)
-    return response
-
-# path to your json file
 cred = credentials.Certificate({
 "type": "service_account",
   "project_id": "seamless-customer-support",
@@ -57,27 +16,27 @@ cred = credentials.Certificate({
   "universe_domain": "googleapis.com"
 })
 
-
-# https://your-database-name.firebaseio.com
 firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://seamless-customer-support-default-rtdb.europe-west1.firebasedatabase.app/'
 })
 
 ref = db.reference('/')
 
-@app.post("/receive_question")
-async def receive_question(question: Question):
-    user_id = question.user_id
-    user_question = question.question
+def save_answer_to_firebase(user_id, question, answer):
+    user_ref = ref.child(user_id)
+    user_data = user_ref.get()
 
-    send_question_to_bot(user_id, user_question)
+    if user_data is not None:
+        for key, value in user_data.items():
+            if value['A question'] == question:
+                question_ref = user_ref.child(key)
+                question_ref.update({
+                    'An answer': answer
+                })
+                break
 
-    ref.child(user_id).push({
-        'A question': user_question
-    })
-    return {"status": "question received"}
+user_id = '0003'
+question = 'What if...?'
+answer = '1)..2)...'
 
-
-id = '0004'
-question = 'What your app can do?'
-send_question_bot(id, question)
+save_answer_to_firebase(user_id, question, answer)

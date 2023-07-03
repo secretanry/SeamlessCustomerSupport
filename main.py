@@ -25,9 +25,14 @@ class Answer(BaseModel):
 async def send_answer(answer: Answer):
     return {"status": "answer received", "volunteer_answer": answer.answer}
 
+@app.post("/send_question_bot")
+async def send_question_bot(question: Question):
+    response = send_question_to_bot(question.user_id, question.question)
+    return {"status": "question sent", "bot_response": response.text}
+
 
 def send_question_to_bot(user_id, question):
-    url = 'http://localhost:2007'
+    url = 'http://localhost:8000/receive_question_bot'
     data = {'user_id': user_id, 'question': question}
     headers = {'Content-type': 'application/json'}
     response = requests.post(url, data=json.dumps(data), headers=headers)
