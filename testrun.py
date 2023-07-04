@@ -1,46 +1,9 @@
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
-import requests
 import json
-
-from fastapi import FastAPI
-from pydantic import BaseModel
-from typing import Optional
-
-app = FastAPI()
-
-class Question(BaseModel):
-    user_id: str
-    question: str
-
-class Answer(BaseModel):
-    user_id: str
-    answer: str
-
-@app.post("/send_answer")
-async def send_answer(answer: Answer):
-    return {"status": "answer received", "volunteer_answer": answer.answer}
-
-@app.post("/send_question_bot")
-async def send_question_bot(question: Question):
-    response = send_question_to_bot(question.user_id, question.question)
-    return {"status": "question sent", "bot_response": response.text}
-
-
-def send_question_to_bot(user_id, question):
-    url = 'http://localhost:8000/receive_question_bot'
-    data = {'user_id': user_id, 'question': question}
-    headers = {'Content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(data), headers=headers)
-    return response
-
-def send_answer_to_server(user_id, answer):
-    url = 'http://localhost:8000/send_answer'
-    data = {'user_id': user_id, 'answer': answer}
-    headers = {'Content-type': 'application/json'}
-    response = requests.post(url, data=json.dumps(data), headers=headers)
-    return response
+from sentence_transformers import SentenceTransformer, util
+import torch
 
 # path to your json file
 cred = credentials.Certificate({
@@ -63,21 +26,71 @@ firebase_admin.initialize_app(cred, {
     'databaseURL': 'https://seamless-customer-support-default-rtdb.europe-west1.firebasedatabase.app/'
 })
 
-ref = db.reference('/')
+ref_history = db.reference('history')
+ref_question_log = db.reference('question_log')
+model = SentenceTransformer('all-MiniLM-L6-v2')
 
-@app.post("/receive_question")
-async def receive_question(question: Question):
-    user_id = question.user_id
-    user_question = question.question
+def check_FAQ(question):
+    all_questions_data = ref_history.get()
 
-    send_question_to_bot(user_id, user_question)
+    if all_questions_data is not None:
+        all_questions = [item['A question'] for sublist in all_questions_data.values() for item in sublist.values()]
+        all_answers = [item.get('An answer', '') for sublist in all_questions_data.values() for item in sublist.values()]
+        question_embedding = model.encode(question, convert_to_tensor=True)
+        all_questions_embeddings = model.encode(all_questions, convert_to_tensor=True)
 
-    ref.child(user_id).push({
-        'A question': user_question
+        cos_scores = util.pytorch_cos_sim(question_embedding, all_questions_embeddings)[0]
+        top_results = torch.topk(cos_scores, k=1)
+
+        for score, idx in zip(top_results[0], top_results[1]):
+            if score.item() > 0.7:  # Если косинусное сходство больше 0.7
+                return True, all_answers[idx]
+
+    return False, None
+
+def process_question(event):
+    print(event.data)  # new data at /question_log/event.path. None if deleted
+    question_data = event.data
+    if question_data is not None:
+        question = question_data.get('question')
+        processed = question_data.get('processed')
+
+        if question and not processed:
+            FAQ_status, similar_answer = check_FAQ(question)
+
+            # Update question_log
+            question_id = event.path.strip('/')  # get the key of the question_data
+            ref_question_log.child(question_id).update({
+                'processed': True,
+                'FAQ_status': 'FAQ' if FAQ_status else 'notFAQ'
+            })
+
+            # If it's FAQ, update history with the similar answer
+            user_id = question_data['user_id']
+            if FAQ_status:
+                ref_history.child(user_id).push({
+                    'A question': question,
+                    'An answer': similar_answer
+                })
+            else:
+                #####
+                # Функция которая отправит вопрос в сообщество волонтеров ##
+                # Текс вопроса в question и id в user_id ##
+                pass
+                #####
+
+# Listen to updates in question_log
+ref_question_log.listen(process_question)
+
+
+#### Когда волонтеры ответят тогда юзай эту функцию : ####
+def push_question_answer_to_history(user_id, question, answer):
+    # Get the reference to the 'history' node in the database
+    ref_history = db.reference('history')
+
+    # Push a new question-answer pair to the user's history
+    ref_history.child(user_id).push({
+        'A question': question,
+        'An answer': answer
     })
-    return {"status": "question received"}
 
-
-id = '0004'
-question = 'What your app can do?'
-send_question_bot(id, question)
