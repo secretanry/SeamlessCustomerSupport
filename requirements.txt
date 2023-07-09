@@ -1,0 +1,4 @@
+firebase_admin==6.2.0
+json5==0.9.7
+sentence_transformers==2.2.2
+torch==2.0.1
