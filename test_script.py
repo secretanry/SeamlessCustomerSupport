@@ -1,5 +1,5 @@
 import unittest
-import FAQscript  # убедитесь, что ваш скрипт называется FAQscript.py
+import FAQscript
 
 class TestFAQscript(unittest.TestCase):
     def test_process_question(self):
@@ -9,10 +9,8 @@ class TestFAQscript(unittest.TestCase):
         }
         path = '/random_path/'
 
-        # функция process_question теперь возвращает результат
         result = FAQscript.process_question(question_data, path)
         
-        # в этом примере мы просто проверяем, что результат - None, т.к. функция не предусматривает возвращаемого значения
         self.assertIsNone(result)
 
 
