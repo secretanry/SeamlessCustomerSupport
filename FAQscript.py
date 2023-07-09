@@ -80,7 +80,7 @@ def process_question(event):
                 #####
 
 # Listen to updates in question_log
-ref_question_log.listen(process_question)
+№ref_question_log.listen(process_question)
 
 
 #### Когда волонтеры ответят тогда юзай эту функцию : ####
