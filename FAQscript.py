@@ -27,7 +27,6 @@ firebase_admin.initialize_app(cred, {
 
 ref_history = db.reference('history')
 ref_question_log = db.reference('question_log')
-model = SentenceTransformer('all-MiniLM-L6-v2')
 
 def process_question(question_data, path):
     if question_data is not None:
