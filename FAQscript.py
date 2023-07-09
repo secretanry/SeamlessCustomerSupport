@@ -2,8 +2,7 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
 import json
-from sentence_transformers import SentenceTransformer, util
-import torch
+
 
 # path to your json file
 cred = credentials.Certificate({
@@ -29,24 +28,6 @@ firebase_admin.initialize_app(cred, {
 ref_history = db.reference('history')
 ref_question_log = db.reference('question_log')
 model = SentenceTransformer('all-MiniLM-L6-v2')
-
-def check_FAQ(question):
-    all_questions_data = ref_history.get()
-
-    if all_questions_data is not None:
-        all_questions = [item['A question'] for sublist in all_questions_data.values() for item in sublist.values()]
-        all_answers = [item.get('An answer', '') for sublist in all_questions_data.values() for item in sublist.values()]
-        question_embedding = model.encode(question, convert_to_tensor=True)
-        all_questions_embeddings = model.encode(all_questions, convert_to_tensor=True)
-
-        cos_scores = util.pytorch_cos_sim(question_embedding, all_questions_embeddings)[0]
-        top_results = torch.topk(cos_scores, k=1)
-
-        for score, idx in zip(top_results[0], top_results[1]):
-            if score.item() > 0.7:  # Если косинусное сходство больше 0.7
-                return True, all_answers[idx]
-
-    return False, None
 
 def process_question(question_data, path):
     if question_data is not None:
