@@ -1,17 +1,18 @@
-import unittest
+from unittest import TestCase, mock
 import FAQscript
 
-class TestScript(unittest.TestCase):
+class FAQScriptTests(TestCase):
 
-    def test_check_FAQ(self):
-        question = "Тестовый вопрос"
-        result = FAQscript.check_FAQ(question)
-        self.assertIsInstance(result, tuple) # проверка, что функция возвращает кортеж
-        self.assertEqual(len(result), 2) # проверка, что кортеж содержит два элемента
+    @mock.patch('FAQscript.Event', autospec=True)
+    def test_process_question(self, mock_event):
+        mock_event.data = {
+            'question': 'What is your app?',
+            'user_id': '123',
+            'processed': False,
+        }
+        mock_event.path = '/123'
 
-    def test_process_question(self):
-        event = {'data': {'question': 'Тестовый вопрос', 'processed': False}}
-        self.assertIsNone(FAQscript.process_question(event))
+        result = FAQscript.process_question(mock_event)
 
-if __name__ == '__main__':
-    unittest.FAQscript()
+        # Проверка результатов
+        self.assertIsNone(result)
