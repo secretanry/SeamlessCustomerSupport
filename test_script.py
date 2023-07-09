@@ -1,18 +1,19 @@
-from unittest import TestCase, mock
+from unittest import TestCase
 import FAQscript
 
 class FAQScriptTests(TestCase):
-
-    @mock.patch('FAQscript.Event', autospec=True)
-    def test_process_question(self, mock_event):
-        mock_event.data = {
+    def test_process_question(self):
+        # Создание словаря данных для тестирования
+        question_data = {
             'question': 'What is your app?',
             'user_id': '123',
             'processed': False,
         }
-        mock_event.path = '/123'
+        path = '/123'
 
-        result = FAQscript.process_question(mock_event)
+        # Вызов функции с тестовыми данными
+        result = FAQscript.process_question(question_data, path)
 
         # Проверка результатов
         self.assertIsNone(result)
+
