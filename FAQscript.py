@@ -60,23 +60,9 @@ def process_question(question_data, path):
             question_id = path.strip('/')  # get the key of the question_data
             ref_question_log.child(question_id).update({
                 'processed': True,
-                'FAQ_status': 'FAQ' if FAQ_status else 'notFAQ'
+                'FAQ_status': 'notFAQ'
             })
-
-            # If it's FAQ, update history with the similar answer
-            user_id = question_data['user_id']
-            if FAQ_status:
-                ref_history.child(user_id).push({
-                    'A question': question,
-                    'An answer': similar_answer
-                })
-            else:
-                #####
-                # Функция которая отправит вопрос в сообщество волонтеров ##
-                # Текс вопроса в question и id в user_id ##
-                pass
-                #####
-
+               
 # Listen to updates in question_log
 def listen_question_log(event):
     process_question(event.data, event.path)
