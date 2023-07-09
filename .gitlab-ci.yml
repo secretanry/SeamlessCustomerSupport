@@ -8,3 +8,4 @@ test_job:
   script: 
     - pip install -r requirements.txt
     - python -m unittest test_script.py
+
