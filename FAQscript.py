@@ -48,9 +48,7 @@ def check_FAQ(question):
 
     return False, None
 
-def process_question(event):
-    #print(event.data)  # new data at /question_log/event.path. None if deleted
-    question_data = event.data
+def process_question(question_data, path):
     if question_data is not None:
         question = question_data.get('question')
         processed = question_data.get('processed')
@@ -59,7 +57,7 @@ def process_question(event):
             FAQ_status, similar_answer = check_FAQ(question)
 
             # Update question_log
-            question_id = event.path.strip('/')  # get the key of the question_data
+            question_id = path.strip('/')  # get the key of the question_data
             ref_question_log.child(question_id).update({
                 'processed': True,
                 'FAQ_status': 'FAQ' if FAQ_status else 'notFAQ'
@@ -80,7 +78,12 @@ def process_question(event):
                 #####
 
 # Listen to updates in question_log
-#ref_question_log.listen(process_question)
+def listen_question_log(event):
+    process_question(event.data, event.path)
+
+
+ref_question_log.listen(listen_question_log)
+
 
 
 #### Когда волонтеры ответят тогда юзай эту функцию : ####
