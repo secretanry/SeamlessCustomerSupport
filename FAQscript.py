@@ -49,7 +49,7 @@ def check_FAQ(question):
     return False, None
 
 def process_question(event):
-    print(event.data)  # new data at /question_log/event.path. None if deleted
+    #print(event.data)  # new data at /question_log/event.path. None if deleted
     question_data = event.data
     if question_data is not None:
         question = question_data.get('question')
