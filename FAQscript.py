@@ -34,7 +34,6 @@ def process_question(question_data, path):
         processed = question_data.get('processed')
 
         if question and not processed:
-            FAQ_status, similar_answer = check_FAQ(question)
 
             # Update question_log
             question_id = path.strip('/')  # get the key of the question_data
