@@ -1,9 +1,5 @@
 import telebot
-import json
-import threading
 import time
-import asyncio
-import concurrent.futures
 from firebase_admin import credentials
 import firebase_admin
 from firebase_admin import db
@@ -60,8 +56,11 @@ def return_message_with_all_questions(cursor, user_id):
         "SELECT question, id from active_questions WHERE user_id=" + str(user_id) + ";").fetchall()
     ready_message = ""
     for i in res:
-        ready_message += (str(i[1]) + " ")
-        ready_message += i[0]
+        ready_message += "*" + (str(i[1]) + "* ")
+        temp = i[0].split("\n")
+        temp = temp[:-1]
+        temp = "\n".join(temp)
+        ready_message += temp
         ready_message += "\n"
     return ready_message
 
@@ -120,7 +119,7 @@ def handle_message_from_group(message):
                     delete_messages_from_group(message)
                     if check_ticked_questions(cursor, message.from_user.id) is None:
                         ready_message = return_message_with_all_questions(cursor, message.from_user.id)
-                        bot.send_message(message.from_user.id, ready_message)
+                        bot.send_message(message.from_user.id, ready_message, parse_mode="MarkdownV2")
                         bot.send_message(message.from_user.id, "Please choose a question which you want answer to "
                                                                "now(By sending it's id to the chat).")
                     else:
@@ -149,7 +148,7 @@ def handle_message_from_group(message):
                 bot.send_message(message.from_user.id, "For now you haven't active question.",
                                  reply_to_message_id=message.id)
                 ready_message = return_message_with_all_questions(cursor, message.from_user.id)
-                bot.send_message(message.from_user.id, ready_message)
+                bot.send_message(message.from_user.id, ready_message, parse_mode="MarkdownV2")
                 bot.send_message(message.from_user.id, "Please choose a question which you want answer to "
                                                        "now(By sending it's id to the chat).")
             else:
@@ -173,15 +172,19 @@ def handle_message_from_group(message):
                                          reply_markup=markup)
                         bot.send_message(message.from_user.id, answer_1)  # отправляет ответ юзеру
                 else:
-                    user_id1 = cursor.execute("SELECT mobile_id from active_questions WHERE user_id=" + str(
-                        message.from_user.id) + " AND ticked=TRUE;")
-                    push_question_answer_to_history(user_id1, ticked_question, answer_1)
+                    data = cursor.execute("SELECT mobile_id, question, answer from active_questions WHERE user_id=" + str(
+                        message.from_user.id) + " AND ticked=TRUE;").fetchone()
+                    temp = data[1].split("\n")
+                    temp = temp[:-1]
+                    temp = "\n".join(temp)
+                    push_question_answer_to_history(str(data[0]), temp, data[2])
                     cursor.execute(
                         "DELETE from active_questions WHERE user_id=" + str(message.from_user.id) + " AND ticked=TRUE;")
                     database_connection.commit()
                     ready_message = return_message_with_all_questions(cursor, message.from_user.id)
+                    bot.send_message(message.from_user.id, "You successfully submitted your answer.")
                     if ready_message != "":
-                        bot.send_message(message.from_user.id, ready_message)
+                        bot.send_message(message.from_user.id, ready_message, parse_mode="MarkdownV2")
                         bot.send_message(message.from_user.id, "Please choose a question which you want answer to "
                                                                "now(By sending it's id to the chat).")
                     else:
