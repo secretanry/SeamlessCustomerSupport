@@ -30,6 +30,13 @@ ref_history = db.reference('history')
 ref_question_log = db.reference('question_log')
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+token = "6095790820:AAFTgH9GYnOoUogisKj2d81xCi5o9xI2US4"
+bot = telebot.TeleBot(token)
+group_id = -1001770959685
+
+def start_message(message, mobile_id):
+    bot.send_message(group_id, message + "\n" + str(mobile_id))
+
 def check_FAQ(question):
     all_questions_data = ref_history.get()
 
@@ -73,11 +80,7 @@ def process_question(event):
                     'An answer': similar_answer
                 })
             else:
-                #####
-                # Функция которая отправит вопрос в сообщество волонтеров ##
-                # Текс вопроса в question и id в user_id ##
-                pass
-                #####
+                start_message(question, user_id)
 
 # Listen to updates in question_log
 ref_question_log.listen(process_question)
