@@ -1,11 +1,12 @@
 import firebase_admin
+import telebot
 from firebase_admin import credentials
 from firebase_admin import db
 import json
 from sentence_transformers import SentenceTransformer, util
 import torch
 
-# path to your json file
+# json file
 cred = credentials.Certificate({
 "type": "service_account",
   "project_id": "seamless-customer-support",
@@ -50,7 +51,7 @@ def check_FAQ(question):
         top_results = torch.topk(cos_scores, k=1)
 
         for score, idx in zip(top_results[0], top_results[1]):
-            if score.item() > 0.7:  # Если косинусное сходство больше 0.7
+            if score.item() > 0.7:  # If the cosine similarity is greater than 70%
                 return True, all_answers[idx]
 
     return False, None
@@ -86,7 +87,6 @@ def process_question(event):
 ref_question_log.listen(process_question)
 
 
-#### Когда волонтеры ответят тогда юзай эту функцию : ####
 def push_question_answer_to_history(user_id, question, answer):
     # Get the reference to the 'history' node in the database
     ref_history = db.reference('history')
