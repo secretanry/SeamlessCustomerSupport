@@ -6,13 +6,14 @@ import asyncio
 import concurrent.futures
 from firebase_admin import credentials
 import firebase_admin
+from firebase_admin import db
+import sqlite3
 
 token = "6095790820:AAFTgH9GYnOoUogisKj2d81xCi5o9xI2US4"
 bot = telebot.TeleBot(token)
 group_id = -1001770959685
 
 message1 = "How should I use this bot?"
-user_id1 = 103452
 
 cred = credentials.Certificate({
     "type": "service_account",
@@ -33,19 +34,8 @@ firebase_admin.initialize_app(cred, {
 })
 
 
-# async def handle_connection(reader, writer):
-#     while True:
-#         try:
-#             data = yield asyncio.wait_for(reader.readline(), timeout=10.0)
-#             start_message(data)
-#             break
-#         except concurrent.futures.TimeoutError:
-#             break
-#     writer.close()
-
-
-def start_message(message):
-    bot.send_message(group_id, message)
+def start_message(message, mobile_id):
+    bot.send_message(group_id, message + "\n" + str(mobile_id))
 
 
 def push_question_answer_to_history(user_id, question, answer):
@@ -65,54 +55,139 @@ def delete_messages_from_group(message):
     bot.delete_message(group_id, message.id)
 
 
+def return_message_with_all_questions(cursor, user_id):
+    res = cursor.execute(
+        "SELECT question, id from active_questions WHERE user_id=" + str(user_id) + ";").fetchall()
+    ready_message = ""
+    for i in res:
+        ready_message += (str(i[1]) + " ")
+        ready_message += i[0]
+        ready_message += "\n"
+    return ready_message
+
+
+def check_ticked_questions(cursor, user_id):
+    res = cursor.execute(
+        "SELECT id from active_questions WHERE ticked=TRUE AND user_id=" + str(user_id) + ";").fetchone()
+    return res
+
+
+def mark_ticked_question(cursor, id, connection):
+    res = cursor.execute("SELECT * from active_questions WHERE id=" + str(id) + ";").fetchall()
+    if len(res) == 0:
+        return False
+    cursor.execute("UPDATE active_questions set ticked=TRUE WHERE id=" + str(id) + ";")
+    connection.commit()
+    return True
+
+
+def check_login(user_id, cursor):
+    res = cursor.execute("SELECT * FROM logged_users WHERE id=" + str(user_id) + ";").fetchall()
+    if len(res) == 0:
+        return False
+    return True
+
+
 @bot.message_handler(commands=["start"])
 def login(message):
-    bot.send_message(message.chat.id, "You successfully logged in!")
+    database_connection = sqlite3.connect("botdb")
+    cursor = database_connection.cursor()
+    if message.chat.id != group_id:
+        if not check_login(message.from_user.id, cursor):
+            cursor.execute("INSERT INTO logged_users VALUES (" + str(message.from_user.id) + ");")
+            database_connection.commit()
+            bot.send_message(message.chat.id, "You successfully logged in!")
+        else:
+            bot.send_message(message.chat.id, "You are already logged in!")
+    database_connection.close()
 
 
 @bot.message_handler(content_types=["text"])
 def handle_message_from_group(message):
-    global answer_1
+    database_connection = sqlite3.connect("botdb")
+    cursor = database_connection.cursor()
     if message.chat.id == group_id:
         if message.reply_to_message:
             if message.text == "!get":
-                # if '/start' in message.from_user.messages:
-                replied_message = message.reply_to_message.text
-                bot.send_message(message.from_user.id, replied_message)
-                bot.send_message(message.from_user.id, "You successfully catch this question to work")
-                delete_messages_from_group(message)
-            # else:
-            #     bot.send_message(group_id, "You are not logged in, please send /start to bot and try again")
+                if check_login(message.from_user.id, cursor):
+                    replied_message = message.reply_to_message.text
+                    bot.send_message(message.from_user.id, replied_message)
+                    bot.send_message(message.from_user.id, "You successfully catch this question to work")
+                    replied_message1 = replied_message.split("\n")
+                    cursor.execute("INSERT INTO active_questions (user_id, question, ticked, mobile_id) VALUES(" + str(
+                        message.from_user.id) + ", '" + replied_message + "', FALSE, " + replied_message1[-1] + ");")
+                    database_connection.commit()
+                    delete_messages_from_group(message)
+                    if check_ticked_questions(cursor, message.from_user.id) is None:
+                        ready_message = return_message_with_all_questions(cursor, message.from_user.id)
+                        bot.send_message(message.from_user.id, ready_message)
+                        bot.send_message(message.from_user.id, "Please choose a question which you want answer to "
+                                                               "now(By sending it's id to the chat).")
+                    else:
+                        bot.send_message(message.from_user.id, "For now you have active question.")
+                else:
+                    bot.send_message(message.chat.id, "You are not logged in yet. Please log in by sending /start to "
+                                                      "personal messages with bot and try again",
+                                     reply_to_message_id=message.id)
     else:
-        markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
-        button_1 = telebot.types.KeyboardButton("Yes")
-        button_2 = telebot.types.KeyboardButton("No")
-        markup.add(button_1, button_2)
-        # bot.send_message(message.chat.id, text="Is it all answer? (Yes or No)".format(message.from_user),
-        #                  reply_markup=markup)
-
-        if message.text != "Yes":  # пока ответ не весь, добавляет в ответ и снова спрашивает
-            if message.text != "No":
-                answer_more = message.text
-                answer_1 = answer_1 + " " + answer_more
-                bot.send_message(message.chat.id, text="Is it all answer? (Yes or No)".format(message.from_user),
-                                 reply_markup=markup)
-
-                bot.send_message(message.from_user.id, answer_1)  # отправляет ответ юзеру
+        if message.text.isdigit():
+            if check_ticked_questions(cursor, message.from_user.id) is None:
+                if mark_ticked_question(cursor, int(message.text), database_connection):
+                    bot.send_message(message.from_user.id,
+                                     "You successfully mark question " + str(message.text) + " as "
+                                                                                             "active",
+                                     reply_to_message_id=message.id)
+                else:
+                    bot.send_message(message.from_user.id, "Incorrect question id, please try again",
+                                     reply_to_message_id=message.id)
+            else:
+                bot.send_message(message.from_user.id, "For now you have active question.",
+                                 reply_to_message_id=message.id)
         else:
-            push_question_answer_to_history(user_id1, answer_1)
+            ticked_question = check_ticked_questions(cursor, message.from_user.id)
+            if ticked_question is None:
+                bot.send_message(message.from_user.id, "For now you haven't active question.",
+                                 reply_to_message_id=message.id)
+                ready_message = return_message_with_all_questions(cursor, message.from_user.id)
+                bot.send_message(message.from_user.id, ready_message)
+                bot.send_message(message.from_user.id, "Please choose a question which you want answer to "
+                                                       "now(By sending it's id to the chat).")
+            else:
+                markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
+                button_1 = telebot.types.KeyboardButton("Yes")
+                button_2 = telebot.types.KeyboardButton("No")
+                markup.add(button_1, button_2)
+                answer_1 = ""
+                if message.text != "Yes":  # пока ответ не весь, добавляет в ответ и снова спрашивает
+                    if message.text != "No":
+                        answer_1 = cursor.execute("SELECT answer FROM active_questions WHERE user_id=" + str(
+                            message.from_user.id) + " and ticked=TRUE").fetchone()[0]
+                        if answer_1 is None:
+                            answer_1 = ""
+                        answer_more = message.text
+                        answer_1 = answer_1 + " " + answer_more
+                        cursor.execute("UPDATE active_questions set answer='" + answer_1 + "'WHERE ticked=TRUE;")
+                        database_connection.commit()
+                        bot.send_message(message.chat.id,
+                                         text="Is it all answer? (Yes or No)".format(message.from_user),
+                                         reply_markup=markup)
+                        bot.send_message(message.from_user.id, answer_1)  # отправляет ответ юзеру
+                else:
+                    user_id1 = cursor.execute("SELECT mobile_id from active_questions WHERE user_id=" + str(
+                        message.from_user.id) + " AND ticked=TRUE;")
+                    push_question_answer_to_history(user_id1, ticked_question, answer_1)
+                    cursor.execute(
+                        "DELETE from active_questions WHERE user_id=" + str(message.from_user.id) + " AND ticked=TRUE;")
+                    database_connection.commit()
+                    ready_message = return_message_with_all_questions(cursor, message.from_user.id)
+                    if ready_message != "":
+                        bot.send_message(message.from_user.id, ready_message)
+                        bot.send_message(message.from_user.id, "Please choose a question which you want answer to "
+                                                               "now(By sending it's id to the chat).")
+                    else:
+                        bot.send_message(message.from_user.id, "For now you don't have questions, please return to "
+                                                               "the group to catch new.")
 
 
-answer_1 = ""
-start_message(message1)
-# loop = asyncio.get_event_loop()
-# server_gen = asyncio.start_server(handle_connection, port=2007)
-# server = loop.run_until_complete(server_gen)
-# try:
-#     loop.run_forever()
-# except KeyboardInterrupt:
-#     pass
-# finally:
-#     server.close()
-#     loop.stop()
+start_message(message1, 101456)
 bot.polling()
