@@ -88,7 +88,7 @@ def process_question(doc_snapshot, changes, read_time):
                     FAQ_status, similar_answer = check_FAQ(question)
 
                     if FAQ_status:
-                        push_question_answer_to_history(user_id, question, similar_answer)
+                        push_question_answer_to_history(user_id, question, similar_answer, message_timestamp)
                     else:
                         start_message(question, user_id)
 
@@ -99,12 +99,13 @@ def process_question(doc_snapshot, changes, read_time):
 # Listen to updates in question_log
 ref_messages.on_snapshot(process_question)
 
-def push_question_answer_to_history(user_id, question, answer):
+def push_question_answer_to_history(user_id, question, answer, timestamp):
     doc_ref = ref_history.document()
     doc_ref.set({
         'uid': user_id,
         'A question': question,
-        'An answer': answer
+        'An answer': answer,
+        'createdAt': timestamp
     })
 
 
