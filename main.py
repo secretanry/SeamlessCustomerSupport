@@ -41,6 +41,9 @@ group_id = -1001770959685
 def start_message(message, mobile_id):
     bot.send_message(group_id, message + "\n" + str(mobile_id))
 
+def start_message_if_faq(message):
+    bot.send_message(group_id, message)
+
 def check_FAQ(question):
     all_questions_data = [doc.to_dict() for doc in ref_history.stream()]
 
@@ -88,7 +91,9 @@ def process_question(doc_snapshot, changes, read_time):
                     FAQ_status, similar_answer = check_FAQ(question)
 
                     if FAQ_status:
-                        push_question_answer_to_history(user_id, question, similar_answer, message_timestamp)
+                        #push_question_answer_to_history(user_id, question, similar_answer, message_timestamp)
+                        start_message(question, user_id)
+                        start_message_if_faq(similar_answer)
                     else:
                         start_message(question, user_id)
 
