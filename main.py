@@ -42,7 +42,7 @@ def start_message(message, mobile_id):
     bot.send_message(group_id, message + "\n" + str(mobile_id))
 
 def start_message_if_faq(message):
-    bot.send_message(group_id, message)
+    bot.send_message(group_id, "An answer to the similar question: " + message)
 
 def check_FAQ(question):
     all_questions_data = [doc.to_dict() for doc in ref_history.stream()]
