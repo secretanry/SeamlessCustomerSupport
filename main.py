@@ -52,7 +52,7 @@ def check_FAQ(question):
     all_questions_data = [doc.to_dict() for doc in ref_history.stream()]
 
     if all_questions_data:
-        all_questions = [item['A question'] for item in all_questions_data]
+        all_questions = [item['question'] for item in all_questions_data]
         all_answers = [item.get('text', '') for item in all_questions_data]
         question_embedding = model.encode(question, convert_to_tensor=True)
         all_questions_embeddings = model.encode(all_questions, convert_to_tensor=True)
@@ -113,7 +113,7 @@ def push_question_answer_to_history(user_id, question, answer, timestamp):
     doc_ref = ref_history.document()
     doc_ref.set({
         'uid': user_id,
-        'A question': question,
+        'question': question,
         'text': answer,
         'createdAt': timestamp
     })
