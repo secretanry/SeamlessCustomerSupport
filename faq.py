@@ -9,7 +9,7 @@ import time
 import datetime
 from google.api_core import datetime_helpers
 
-# json file
+# json file Firebase config
 cred = credentials.Certificate({
     "type": "service_account",
     "project_id": "chatbot-73526",
@@ -37,7 +37,7 @@ token = "6095790820:AAFTgH9GYnOoUogisKj2d81xCi5o9xI2US4"
 bot = telebot.TeleBot(token)
 group_id = -1001770959685
 
-
+# Sending message to the volunteer's group 
 def start_message(message, mobile_id, answer=""):
     if answer == "":
         a = bot.send_message(group_id,
@@ -46,8 +46,7 @@ def start_message(message, mobile_id, answer=""):
         a = bot.send_message(group_id, message + "\n" + str(mobile_id) + "\n" + "An answer to the similar question: " + answer)
     return a
 
-
-
+# Analysis of the question on the FAQ
 def check_FAQ(question):
     all_questions_data = [doc.to_dict() for doc in ref_history.stream()]
 
@@ -66,16 +65,15 @@ def check_FAQ(question):
 
     return False, None
 
-
+# Converting a Firestore Timestamp to a python datetime object
 def timestamp_to_datetime(timestamp):
-    """Converts a Firestore Timestamp to a python datetime object"""
     return datetime_helpers.to_milliseconds(timestamp) / 1000.0
 
 
 # Save the timestamp of the last processed message
 last_processed_timestamp = datetime.datetime.now()
 
-
+# Message processing function
 def process_question(doc_snapshot, changes, read_time):
     global last_processed_timestamp
 
@@ -96,7 +94,6 @@ def process_question(doc_snapshot, changes, read_time):
                     FAQ_status, similar_answer = check_FAQ(question)
 
                     if FAQ_status:
-                        # push_question_answer_to_history(user_id, question, similar_answer, message_timestamp)
                         start_message(question, user_id, similar_answer)
                     else:
                         start_message(question, user_id)
@@ -105,19 +102,8 @@ def process_question(doc_snapshot, changes, read_time):
                 last_processed_timestamp = message_datetime
 
 
-# Listen to updates in question_log
+# Listen to updates in messages
 ref_messages.on_snapshot(process_question)
-
-
-def push_question_answer_to_history(user_id, question, answer, timestamp):
-    doc_ref = ref_history.document()
-    doc_ref.set({
-        'uid': user_id,
-        'question': question,
-        'text': answer,
-        'createdAt': timestamp
-    })
-
 
 while True:
     time.sleep(10)
