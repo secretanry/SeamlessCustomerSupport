@@ -51,9 +51,13 @@ def get_similar_question_index(user_question, all_questions):
 
     tfidf = vectorizer.fit_transform(all_questions)
     cosine_similarities = linear_kernel(tfidf[-1:], tfidf).flatten()
-    most_similar_question_index = cosine_similarities.argsort()[:-2][-1]
 
-    return most_similar_question_index, cosine_similarities[most_similar_question_index]
+    if cosine_similarities.size != 0:
+        most_similar_question_index = cosine_similarities.argsort()[-2]
+        return most_similar_question_index, cosine_similarities[most_similar_question_index]
+    else:
+        return None, 0
+
 
 # Analysis of the question on the FAQ
 def check_FAQ(question):
