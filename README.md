@@ -16,24 +16,6 @@ Our service offers the following features:
 
 5. **Easy Integration**: Our customer support service can be easily integrated into both mobile and web applications. This flexibility allows businesses and organizations to incorporate our solution seamlessly into their existing platforms.
 
-## Demo
-
-![User answers question](src/question.png)
-
-
-![Question redirected to telegram group](src/tg_question.png)
-
-![Volunteer gets question](src/get.png)
-
-![Question redirected to PM with volunteer](src/PM.png)
-
-![Volunteer answers](src/ans.png)
-
-![Volunteer submit his answer](src/submit.png)
-
-
-![Answer redirected to WEB](src/web_ans.png)
-
 
 
 ## How to use
@@ -52,6 +34,25 @@ To use our Customer Support Service, follow these steps:
    - Read the questions and decide which one to answer.
    - Type your response in the Telegram group chat and send it.
    - Repeat the process for new questions as they arrive.
+
+
+## Demo
+
+![User answers question](src/question.png)
+
+
+![Question redirected to telegram group](src/tg_question.png)
+
+![Volunteer gets question](src/get.png)
+
+![Question redirected to PM with volunteer](src/PM.png)
+
+![Volunteer answers](src/ans.png)
+
+![Volunteer submit his answer](src/submit.png)
+
+
+![Answer redirected to WEB](src/web_ans.png)
 
 
 ## Getting Started
